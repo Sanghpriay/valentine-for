@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sukhda 💘</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+
+<body>
+  <main class="wrap">
+    <section class="card" id="card">
+      <!-- Mascot -->
+      <div class="mascot" aria-hidden="true">
+        <div class="face">
+          <span class="ear ear-left"></span>
+          <span class="ear ear-right"></span>
+          <span class="heart"></span>
+          <span class="eye eye-left"></span>
+          <span class="eye eye-right"></span>
+          <span class="nose"></span>
+        </div>
+      </div>
+
+      <!-- Screen 1: Ask -->
+      <div id="screenAsk">
+        <h1 id="question">
+          <span id="name">sukhda</span>, will you be my valentine? 💌
+        </h1>
+        <p class="subline">cute, chaotic, and very serious about snacks.</p>
+
+        <div class="buttons" id="buttonsArea">
+          <button class="btn yes" id="yesBtn">Yes</button>
+          <button class="btn no" id="noBtn">No</button>
+        </div>
+
+        <p class="hint" id="hint">“No” seems a bit shy 😈</p>
+      </div>
+
+      <!-- Screen 2: Yay -->
+      <div class="screen hidden" id="screenYay">
+        <h2 class="big">YAY! 🎉</h2>
+        <p class="sub">WOOO! I promise: vibes ✅ dates ✅ snacks ✅</p>
+
+        <!-- Replace with your photo or gif -->
+        <img
+          id="yayImg"
+          src="https://media.giphy.com/media/26ufdipQqU2lhNA4g/giphy.gif"
+          alt="Celebration"
+        />
+
+        <div class="row">
+          <button class="btn next" id="nextBtn">Okay now pick our vibe →</button>
+        </div>
+      </div>
+
+      <!-- Screen 3: Pick a date vibe -->
+      <div class="screen hidden" id="screenPick">
+        <h2 class="big">Choose our plan 😌</h2>
+        <p class="sub">No pressure. (Slight pressure.)</p>
+
+        <div class="choices">
+          <button class="choice" data-choice="Coffee date ☕">Coffee date ☕</button>
+          <button class="choice" data-choice="Dinner 🍝">Dinner 🍝</button>
+          <button class="choice" data-choice="Movie night 🎬">Movie night 🎬</button>
+          <button class="choice" data-choice="You decide 👑">You decide 👑</button>
+        </div>
+
+        <p class="tiny">P.S. “You decide” makes you the CEO of the date.</p>
+      </div>
+
+      <!-- Screen 4: Final -->
+      <div class="screen hidden" id="screenFinal">
+        <h2 class="big">Locked in 💘</h2>
+        <p class="sub" id="finalLine"></p>
+
+        <div class="finalCard">
+          <p class="finalMsg" id="finalMsg"></p>
+          <button class="btn copy" id="copyBtn">Copy this message</button>
+          <button class="btn again" id="againBtn">Replay</button>
+        </div>
+      </div>
+    </section>
+
+    <footer class="footer">
+      <small>Tip: swap the gif/photo + deploy on GitHub Pages for a shareable link.</small>
+    </footer>
+  </main>
+
+  <!-- Confetti -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>

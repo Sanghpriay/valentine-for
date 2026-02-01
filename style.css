@@ -136,7 +136,15 @@ h1 {
   color: #444;
   min-width: 120px;
   box-shadow: 0 10px 22px rgba(0,0,0,0.12);
+  z-index: 2;
+
+  transform-origin: center;
+  transition: 
+    left 120ms ease,
+    top 120ms ease,
+    transform 120ms ease;
 }
+
 
 .btn.next {
   background: #111;
@@ -289,3 +297,4 @@ img {
 }
 .heart::before { left: -10px; top: 0; }
 .heart::after { left: 0; top: -10px; }
+

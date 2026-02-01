@@ -1,11 +1,14 @@
 // ========= Customize =========
 const PERSON_NAME = "sukhda";
-const YES_IMAGE_URL = "us.jpg"; // or "photo.jpg" or a gif URL
-const MUSIC_VOLUME_TARGET = 0.6; // 0.0 - 1.0
-const MUSIC_FADE_IN_MS = 1200;   // fade-in duration
-const MUSIC_FADE_OUT_MS = 900;   // fade-out duration
+const YES_IMAGE_URL = "us.jpg";      // your couple photo filename (in repo root) OR a gif URL
+const SONG_FILE = "song.mp3";        // your mp3 filename (in repo root)
+
+const MUSIC_VOLUME_TARGET = 0.6;     // 0.0 - 1.0
+const MUSIC_FADE_IN_MS = 1200;       // fade-in duration
+const MUSIC_FADE_OUT_MS = 900;       // fade-out duration
 // ============================
 
+// ---------- Elements ----------
 const nameEl = document.getElementById("name");
 const yayImg = document.getElementById("yayImg");
 
@@ -26,8 +29,45 @@ const copyBtn = document.getElementById("copyBtn");
 const finalLine = document.getElementById("finalLine");
 const finalMsg = document.getElementById("finalMsg");
 
-// Music
-const bgMusic = document.getElementById("bgMusic");
+// ---------- Inject/attach music element (so you don't have to edit HTML) ----------
+let bgMusic = document.getElementById("bgMusic");
+if (!bgMusic) {
+  bgMusic = document.createElement("audio");
+  bgMusic.id = "bgMusic";
+  bgMusic.src = SONG_FILE;
+  bgMusic.preload = "auto";
+  bgMusic.loop = true;
+  bgMusic.setAttribute("playsinline", "");
+  document.body.appendChild(bgMusic);
+} else {
+  // If you already had an <audio> tag, ensure it points to your file
+  bgMusic.src = bgMusic.getAttribute("src") || SONG_FILE;
+  bgMusic.loop = true;
+  bgMusic.preload = "auto";
+  bgMusic.setAttribute("playsinline", "");
+}
+
+// ---------- Init ----------
+nameEl.textContent = PERSON_NAME;
+yayImg.src = YES_IMAGE_URL;
+
+// ---------- Screen helpers ----------
+function showOnly(which) {
+  [screenAsk, screenYay, screenPick, screenFinal].forEach(el => el.classList.add("hidden"));
+  which.classList.remove("hidden");
+}
+
+function fireConfetti(ms = 900) {
+  if (typeof confetti !== "function") return;
+  const end = Date.now() + ms;
+
+  (function frame() {
+    confetti({ particleCount: 7, spread: 70, origin: { y: 0.65 } });
+    if (Date.now() < end) requestAnimationFrame(frame);
+  })();
+}
+
+// ---------- Music (first-click reliable) ----------
 let musicStarted = false;
 let fadeRaf = null;
 
@@ -36,47 +76,43 @@ function cancelFade() {
   fadeRaf = null;
 }
 
-// Try to load ASAP (helps first-click start)
 window.addEventListener("load", () => {
-  if (!bgMusic) return;
   try { bgMusic.load(); } catch {}
 });
 
-// “Arm” audio on first interaction (iOS/Safari friendly).
-// This makes the very first YES click succeed much more often.
+// Arm audio on first user interaction (helps Safari/iOS + slow first load)
 function armAudioOnce() {
-  if (!bgMusic) return;
-  // play muted for a split second (counts as user gesture), then pause
-  const prevMuted = bgMusic.muted;
-  bgMusic.muted = true;
-  const p = bgMusic.play();
-  if (p && typeof p.then === "function") {
-    p.then(() => {
-      bgMusic.pause();
-      bgMusic.currentTime = 0;
+  try {
+    const prevMuted = bgMusic.muted;
+    bgMusic.muted = true;
+
+    const p = bgMusic.play();
+    if (p && typeof p.then === "function") {
+      p.then(() => {
+        bgMusic.pause();
+        bgMusic.currentTime = 0;
+        bgMusic.muted = prevMuted;
+      }).catch(() => {
+        bgMusic.muted = prevMuted;
+      });
+    } else {
       bgMusic.muted = prevMuted;
-    }).catch(() => {
-      bgMusic.muted = prevMuted;
-    });
-  } else {
-    bgMusic.muted = prevMuted;
-  }
+    }
+  } catch {}
+
   window.removeEventListener("pointerdown", armAudioOnce);
   window.removeEventListener("touchstart", armAudioOnce);
 }
 window.addEventListener("pointerdown", armAudioOnce, { once: true });
 window.addEventListener("touchstart", armAudioOnce, { once: true });
 
-async function startMusicWithFadeIn(targetVolume = 0.6, fadeMs = 1200) {
-  if (!bgMusic) return;
-
+async function startMusicWithFadeIn(targetVolume = MUSIC_VOLUME_TARGET, fadeMs = MUSIC_FADE_IN_MS) {
   cancelFade();
 
   bgMusic.muted = false;
-  bgMusic.currentTime = 0;     // always start from beginning
   bgMusic.volume = 0;
 
-  // IMPORTANT: start playback immediately (before other UI work)
+  // Start playback FIRST (most important for first-click reliability)
   await bgMusic.play();
 
   const start = performance.now();
@@ -89,24 +125,39 @@ async function startMusicWithFadeIn(targetVolume = 0.6, fadeMs = 1200) {
   fadeRaf = requestAnimationFrame(step);
 }
 
-// ✅ Replace your existing YES handler with this:
-yesBtn.addEventListener("click", async () => {
-  // Start music FIRST so it counts cleanly as part of the click gesture
-  if (!musicStarted) {
-    try {
-      await startMusicWithFadeIn(0.6, 1200);
-      musicStarted = true;
-    } catch (e) {
-      // If it fails, it’ll usually work on the next tap (but this reduces that a lot)
-      console.log("Music blocked/failed:", e);
+function stopMusicInstant() {
+  cancelFade();
+  try { bgMusic.pause(); } catch {}
+  try { bgMusic.currentTime = 0; } catch {}
+  try { bgMusic.volume = 0; } catch {}
+  musicStarted = false;
+}
+
+function stopMusicWithFadeOut(fadeMs = MUSIC_FADE_OUT_MS) {
+  cancelFade();
+
+  const startVol = Number.isFinite(bgMusic.volume) ? bgMusic.volume : 0;
+  const start = performance.now();
+
+  return new Promise((resolve) => {
+    function step(now) {
+      const t = Math.min(1, (now - start) / fadeMs);
+      bgMusic.volume = Math.max(0, startVol * (1 - t));
+
+      if (t < 1) {
+        fadeRaf = requestAnimationFrame(step);
+      } else {
+        fadeRaf = null;
+        try { bgMusic.pause(); } catch {}
+        try { bgMusic.currentTime = 0; } catch {}
+        try { bgMusic.volume = 0; } catch {}
+        musicStarted = false;
+        resolve();
+      }
     }
-  }
-
-  // Then do the UI celebration
-  showOnly(screenYay);
-  fireConfetti(1000);
-});
-
+    fadeRaf = requestAnimationFrame(step);
+  });
+}
 
 // ---------- NO button dodge + shrink ----------
 const DODGE_DISTANCE = 120;
@@ -125,8 +176,7 @@ function updateHint(force = false) {
   ];
 
   if (force) noClicks++;
-  const idx = Math.min(noClicks, lines.length - 1);
-  hint.textContent = lines[idx];
+  hint.textContent = lines[Math.min(noClicks, lines.length - 1)];
 
   // Shrink NO progressively (min size 55%)
   noScale = Math.max(0.55, 1 - noClicks * 0.08);
@@ -161,9 +211,7 @@ function placeNoButtonRandomly(animate = true) {
     );
   }
 
-  let x, y;
-  let tries = 0;
-
+  let x, y, tries = 0;
   do {
     x = Math.max(padding, Math.random() * maxX);
     y = Math.max(padding, Math.random() * maxY);
@@ -175,7 +223,7 @@ function placeNoButtonRandomly(animate = true) {
   noBtn.style.top = `${y}px`;
 }
 
-// initial placement after layout
+// Initial placement after layout
 window.addEventListener("load", () => {
   placeNoButtonRandomly(false);
   noBtn.style.transform = "scale(1)";
@@ -209,20 +257,21 @@ noBtn.addEventListener("click", () => {
   updateHint(true);
 });
 
-// ---------- YES flow (starts music + fades in) ----------
+// ---------- YES flow (music first, then celebration) ----------
 yesBtn.addEventListener("click", async () => {
-  showOnly(screenYay);
-  fireConfetti(1000);
-
-  if (!musicStarted && bgMusic) {
+  // Start music FIRST inside the click gesture (most reliable)
+  if (!musicStarted) {
     try {
-      await playMusicWithFadeIn(MUSIC_VOLUME_TARGET, MUSIC_FADE_IN_MS);
+      await startMusicWithFadeIn(MUSIC_VOLUME_TARGET, MUSIC_FADE_IN_MS);
       musicStarted = true;
-    } catch {
-      // If a browser blocks it (rare since YES is a click), it will play next interaction.
-      musicStarted = false;
+    } catch (e) {
+      console.log("Music play() blocked/failed:", e);
+      // If it fails, it will usually work on the next tap due to arming.
     }
   }
+
+  showOnly(screenYay);
+  fireConfetti(1000);
 });
 
 nextBtn.addEventListener("click", () => {
@@ -231,7 +280,6 @@ nextBtn.addEventListener("click", () => {
 
 // ---------- Pick flow ----------
 let chosen = "";
-
 document.querySelectorAll(".choice").forEach(btn => {
   btn.addEventListener("click", () => {
     chosen = btn.dataset.choice || "A cute date 💘";
@@ -244,7 +292,7 @@ function showFinal(choice) {
   fireConfetti(850);
 
   finalLine.textContent = `We’re doing: ${choice}`;
-  const msg =
+  finalMsg.textContent =
 `SUKHDA 💘
 
 You are officially my Valentine.
@@ -255,8 +303,6 @@ Vibe: chaotic-good.
 Snacks: mandatory.
 
 Now say the word and I’ll plan the rest 😌`;
-
-  finalMsg.textContent = msg;
 }
 
 // ---------- Copy / Replay ----------
@@ -277,18 +323,15 @@ copyBtn.addEventListener("click", async () => {
 });
 
 againBtn.addEventListener("click", async () => {
-  // fade out music like a movie moment ✨
+  // Fade out music like a movie moment ✨
   try {
-    if (musicStarted) {
-      await stopMusicWithFadeOut(MUSIC_FADE_OUT_MS);
-    } else {
-      stopMusicInstant();
-    }
+    if (musicStarted) await stopMusicWithFadeOut(MUSIC_FADE_OUT_MS);
+    else stopMusicInstant();
   } catch {
     stopMusicInstant();
   }
 
-  // reset UI + NO behavior
+  // Reset UI + NO behavior
   chosen = "";
   noClicks = 0;
   noScale = 1;
@@ -297,4 +340,3 @@ againBtn.addEventListener("click", async () => {
   showOnly(screenAsk);
   placeNoButtonRandomly(false);
 });
-

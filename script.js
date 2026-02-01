@@ -1,8 +1,9 @@
 // ========= Customize =========
 const PERSON_NAME = "sukhda";
-const YES_IMAGE_URL = "https://media.giphy.com/media/26ufdipQqU2lhNA4g/giphy.gif";
-// If you uploaded your own photo to the repo, use:
-// const YES_IMAGE_URL = "photo.jpg";
+const YES_IMAGE_URL = "us.jpg"; // or "photo.jpg" or a gif URL
+const MUSIC_VOLUME_TARGET = 0.6; // 0.0 - 1.0
+const MUSIC_FADE_IN_MS = 1200;   // fade-in duration
+const MUSIC_FADE_OUT_MS = 900;   // fade-out duration
 // ============================
 
 const nameEl = document.getElementById("name");
@@ -25,14 +26,15 @@ const copyBtn = document.getElementById("copyBtn");
 const finalLine = document.getElementById("finalLine");
 const finalMsg = document.getElementById("finalMsg");
 
+// Music (make sure index.html has: <audio id="bgMusic" src="song.mp3" preload="auto" loop></audio>)
+const bgMusic = document.getElementById("bgMusic");
+let musicStarted = false;
+let fadeRaf = null;
+
 nameEl.textContent = PERSON_NAME;
 yayImg.src = YES_IMAGE_URL;
 
-// ---------- NO button dodge + shrink ----------
-const DODGE_DISTANCE = 120;
-let noClicks = 0;
-let noScale = 1;
-
+// ---------- helpers ----------
 function showOnly(which) {
   [screenAsk, screenYay, screenPick, screenFinal].forEach(el => el.classList.add("hidden"));
   which.classList.remove("hidden");
@@ -47,6 +49,78 @@ function fireConfetti(ms = 900) {
     if (Date.now() < end) requestAnimationFrame(frame);
   })();
 }
+
+function cancelFade() {
+  if (fadeRaf) cancelAnimationFrame(fadeRaf);
+  fadeRaf = null;
+}
+
+async function playMusicWithFadeIn(targetVolume = MUSIC_VOLUME_TARGET, fadeMs = MUSIC_FADE_IN_MS) {
+  if (!bgMusic) return;
+
+  cancelFade();
+
+  // start from silence
+  bgMusic.volume = 0;
+
+  // try to play (YES click counts as user interaction)
+  await bgMusic.play();
+
+  const start = performance.now();
+  function step(now) {
+    const t = Math.min(1, (now - start) / fadeMs);
+    bgMusic.volume = t * targetVolume;
+    if (t < 1) {
+      fadeRaf = requestAnimationFrame(step);
+    } else {
+      fadeRaf = null;
+    }
+  }
+  fadeRaf = requestAnimationFrame(step);
+}
+
+function stopMusicInstant() {
+  if (!bgMusic) return;
+  cancelFade();
+  try { bgMusic.pause(); } catch {}
+  bgMusic.currentTime = 0;
+  bgMusic.volume = 0;
+  musicStarted = false;
+}
+
+function stopMusicWithFadeOut(fadeMs = MUSIC_FADE_OUT_MS) {
+  if (!bgMusic) return Promise.resolve();
+
+  cancelFade();
+
+  const startVol = bgMusic.volume ?? 0;
+  const start = performance.now();
+
+  return new Promise((resolve) => {
+    function step(now) {
+      const t = Math.min(1, (now - start) / fadeMs);
+      const vol = startVol * (1 - t);
+      bgMusic.volume = Math.max(0, vol);
+
+      if (t < 1) {
+        fadeRaf = requestAnimationFrame(step);
+      } else {
+        fadeRaf = null;
+        try { bgMusic.pause(); } catch {}
+        bgMusic.currentTime = 0;
+        bgMusic.volume = 0;
+        musicStarted = false;
+        resolve();
+      }
+    }
+    fadeRaf = requestAnimationFrame(step);
+  });
+}
+
+// ---------- NO button dodge + shrink ----------
+const DODGE_DISTANCE = 120;
+let noClicks = 0;
+let noScale = 1;
 
 function updateHint(force = false) {
   const lines = [
@@ -63,7 +137,7 @@ function updateHint(force = false) {
   const idx = Math.min(noClicks, lines.length - 1);
   hint.textContent = lines[idx];
 
-  // Shrink the NO button progressively (min size 55%)
+  // Shrink NO progressively (min size 55%)
   noScale = Math.max(0.55, 1 - noClicks * 0.08);
   noBtn.style.transform = `scale(${noScale})`;
 }
@@ -86,7 +160,6 @@ function placeNoButtonRandomly(animate = true) {
   const maxX = areaRect.width - noRect.width - padding;
   const maxY = areaRect.height - noRect.height - padding;
 
-  // Avoid overlapping YES (with extra margin)
   function overlapsYes(x, y) {
     const margin = 18;
     return !(
@@ -106,7 +179,6 @@ function placeNoButtonRandomly(animate = true) {
     tries++;
   } while (overlapsYes(x, y) && tries < 50);
 
-  // NOTE: Keep transition for left/top in CSS, but this supports older versions too
   noBtn.style.transition = animate ? "left 120ms ease, top 120ms ease, transform 120ms ease" : "none";
   noBtn.style.left = `${x}px`;
   noBtn.style.top = `${y}px`;
@@ -146,10 +218,20 @@ noBtn.addEventListener("click", () => {
   updateHint(true);
 });
 
-// ---------- YES flow ----------
-yesBtn.addEventListener("click", () => {
+// ---------- YES flow (starts music + fades in) ----------
+yesBtn.addEventListener("click", async () => {
   showOnly(screenYay);
   fireConfetti(1000);
+
+  if (!musicStarted && bgMusic) {
+    try {
+      await playMusicWithFadeIn(MUSIC_VOLUME_TARGET, MUSIC_FADE_IN_MS);
+      musicStarted = true;
+    } catch {
+      // If a browser blocks it (rare since YES is a click), it will play next interaction.
+      musicStarted = false;
+    }
+  }
 });
 
 nextBtn.addEventListener("click", () => {
@@ -203,8 +285,19 @@ copyBtn.addEventListener("click", async () => {
   }
 });
 
-againBtn.addEventListener("click", () => {
-  // reset
+againBtn.addEventListener("click", async () => {
+  // fade out music like a movie moment ✨
+  try {
+    if (musicStarted) {
+      await stopMusicWithFadeOut(MUSIC_FADE_OUT_MS);
+    } else {
+      stopMusicInstant();
+    }
+  } catch {
+    stopMusicInstant();
+  }
+
+  // reset UI + NO behavior
   chosen = "";
   noClicks = 0;
   noScale = 1;

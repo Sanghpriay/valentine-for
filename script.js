@@ -26,96 +26,87 @@ const copyBtn = document.getElementById("copyBtn");
 const finalLine = document.getElementById("finalLine");
 const finalMsg = document.getElementById("finalMsg");
 
-// Music (make sure index.html has: <audio id="bgMusic" src="song.mp3" preload="auto" loop></audio>)
+// Music
 const bgMusic = document.getElementById("bgMusic");
 let musicStarted = false;
 let fadeRaf = null;
-
-nameEl.textContent = PERSON_NAME;
-yayImg.src = YES_IMAGE_URL;
-
-// ---------- helpers ----------
-function showOnly(which) {
-  [screenAsk, screenYay, screenPick, screenFinal].forEach(el => el.classList.add("hidden"));
-  which.classList.remove("hidden");
-}
-
-function fireConfetti(ms = 900) {
-  if (typeof confetti !== "function") return;
-  const end = Date.now() + ms;
-
-  (function frame() {
-    confetti({ particleCount: 7, spread: 70, origin: { y: 0.65 } });
-    if (Date.now() < end) requestAnimationFrame(frame);
-  })();
-}
 
 function cancelFade() {
   if (fadeRaf) cancelAnimationFrame(fadeRaf);
   fadeRaf = null;
 }
 
-async function playMusicWithFadeIn(targetVolume = MUSIC_VOLUME_TARGET, fadeMs = MUSIC_FADE_IN_MS) {
+// Try to load ASAP (helps first-click start)
+window.addEventListener("load", () => {
+  if (!bgMusic) return;
+  try { bgMusic.load(); } catch {}
+});
+
+// “Arm” audio on first interaction (iOS/Safari friendly).
+// This makes the very first YES click succeed much more often.
+function armAudioOnce() {
+  if (!bgMusic) return;
+  // play muted for a split second (counts as user gesture), then pause
+  const prevMuted = bgMusic.muted;
+  bgMusic.muted = true;
+  const p = bgMusic.play();
+  if (p && typeof p.then === "function") {
+    p.then(() => {
+      bgMusic.pause();
+      bgMusic.currentTime = 0;
+      bgMusic.muted = prevMuted;
+    }).catch(() => {
+      bgMusic.muted = prevMuted;
+    });
+  } else {
+    bgMusic.muted = prevMuted;
+  }
+  window.removeEventListener("pointerdown", armAudioOnce);
+  window.removeEventListener("touchstart", armAudioOnce);
+}
+window.addEventListener("pointerdown", armAudioOnce, { once: true });
+window.addEventListener("touchstart", armAudioOnce, { once: true });
+
+async function startMusicWithFadeIn(targetVolume = 0.6, fadeMs = 1200) {
   if (!bgMusic) return;
 
   cancelFade();
 
-  // start from silence
+  bgMusic.muted = false;
+  bgMusic.currentTime = 0;     // always start from beginning
   bgMusic.volume = 0;
 
-  // try to play (YES click counts as user interaction)
+  // IMPORTANT: start playback immediately (before other UI work)
   await bgMusic.play();
 
   const start = performance.now();
   function step(now) {
     const t = Math.min(1, (now - start) / fadeMs);
     bgMusic.volume = t * targetVolume;
-    if (t < 1) {
-      fadeRaf = requestAnimationFrame(step);
-    } else {
-      fadeRaf = null;
-    }
+    if (t < 1) fadeRaf = requestAnimationFrame(step);
+    else fadeRaf = null;
   }
   fadeRaf = requestAnimationFrame(step);
 }
 
-function stopMusicInstant() {
-  if (!bgMusic) return;
-  cancelFade();
-  try { bgMusic.pause(); } catch {}
-  bgMusic.currentTime = 0;
-  bgMusic.volume = 0;
-  musicStarted = false;
-}
-
-function stopMusicWithFadeOut(fadeMs = MUSIC_FADE_OUT_MS) {
-  if (!bgMusic) return Promise.resolve();
-
-  cancelFade();
-
-  const startVol = bgMusic.volume ?? 0;
-  const start = performance.now();
-
-  return new Promise((resolve) => {
-    function step(now) {
-      const t = Math.min(1, (now - start) / fadeMs);
-      const vol = startVol * (1 - t);
-      bgMusic.volume = Math.max(0, vol);
-
-      if (t < 1) {
-        fadeRaf = requestAnimationFrame(step);
-      } else {
-        fadeRaf = null;
-        try { bgMusic.pause(); } catch {}
-        bgMusic.currentTime = 0;
-        bgMusic.volume = 0;
-        musicStarted = false;
-        resolve();
-      }
+// ✅ Replace your existing YES handler with this:
+yesBtn.addEventListener("click", async () => {
+  // Start music FIRST so it counts cleanly as part of the click gesture
+  if (!musicStarted) {
+    try {
+      await startMusicWithFadeIn(0.6, 1200);
+      musicStarted = true;
+    } catch (e) {
+      // If it fails, it’ll usually work on the next tap (but this reduces that a lot)
+      console.log("Music blocked/failed:", e);
     }
-    fadeRaf = requestAnimationFrame(step);
-  });
-}
+  }
+
+  // Then do the UI celebration
+  showOnly(screenYay);
+  fireConfetti(1000);
+});
+
 
 // ---------- NO button dodge + shrink ----------
 const DODGE_DISTANCE = 120;
@@ -306,3 +297,4 @@ againBtn.addEventListener("click", async () => {
   showOnly(screenAsk);
   placeNoButtonRandomly(false);
 });
+

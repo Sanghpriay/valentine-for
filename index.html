@@ -1,96 +1,135 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Sukhda 💘</title>
-  <link rel="stylesheet" href="style.css" />
+<meta charset="UTF-8">
+<title>For Sukhda ❤️</title>
+<link rel="stylesheet" href="style.css">
 </head>
-
 <body>
-  <main class="wrap">
-    <section class="card" id="card">
-      <!-- Mascot -->
-      <div class="mascot" aria-hidden="true">
-        <div class="face">
-          <span class="ear ear-left"></span>
-          <span class="ear ear-right"></span>
-          <span class="heart"></span>
-          <span class="eye eye-left"></span>
-          <span class="eye eye-right"></span>
-          <span class="nose"></span>
-        </div>
-      </div>
 
-      <!-- Screen 1: Ask -->
-      <div id="screenAsk">
-        <h1 id="question">
-          <span id="name">sukhda</span>, will you be my valentine? 💌
-        </h1>
-        <p class="subline">cute, chaotic, and very serious about snacks.</p>
+<!-- Music -->
+<audio id="music" loop autoplay muted>
+  <source src="music.mp3" type="audio/mpeg">
+</audio>
 
-        <div class="buttons" id="buttonsArea">
-          <button class="btn yes" id="yesBtn">Yes</button>
-          <button class="btn no" id="noBtn">No</button>
-        </div>
+<!-- Start Overlay -->
+<div class="overlay" onclick="startStory()">Tap to Begin 💕</div>
 
-        <p class="hint" id="hint">“No” seems a bit shy 😈</p>
-      </div>
+<!-- Roses -->
+<div class="roses"></div>
 
-      <!-- Screen 2: Yay -->
-      <div class="screen hidden" id="screenYay">
-        <h2 class="big">YAY! 🎉</h2>
-        <p class="sub">WOOO! I promise: vibes ✅ dates ✅ snacks ✅</p>
+<!-- Confetti -->
+<div class="confetti" id="confetti"></div>
 
-        <!-- Replace with your photo or gif -->
-        <img
-          id="yayImg"
-          src="https://media.giphy.com/media/26ufdipQqU2lhNA4g/giphy.gif"
-          alt="Celebration"
-        />
+<!-- Main Card -->
+<div class="card">
+  <img id="photo" src="img1.jpg">
+  <h1 id="text"></h1>
 
-        <div class="row">
-          <button class="btn next" id="nextBtn">Okay now pick our vibe →</button>
-        </div>
-      </div>
+  <div class="buttons">
+    <button id="yesBtn" onclick="next()">Continue 💖</button>
+    <button id="noBtn">NO 🙈</button>
+  </div>
+</div>
 
-      <!-- Screen 3: Pick a date vibe -->
-      <div class="screen hidden" id="screenPick">
-        <h2 class="big">Choose our plan 😌</h2>
-        <p class="sub">No pressure. (Slight pressure.)</p>
+<script>
+const pages = [
+ {img:"img1.jpg", text:"Sukhda, today I don’t just make a promise — I choose you, again and again, every single day."},
+ {img:"img2.jpg", text:"I promise to be your calm when life feels loud, and your strength when things feel heavy."},
+ {img:"img3.jpg", text:"I promise to care for your heart the way it deserves — gently, honestly, and always."},
+ {img:"img4.jpg", text:"I promise to grow with you, learning from you, and becoming better because of you."},
+ {img:"img5.jpg", text:"I promise to stand beside you — not only when life is easy, but especially when it isn’t."},
+ {img:"img6.jpg", text:"I promise to listen to you, even when you don’t know how to put your feelings into words."},
+ {img:"img7.jpg", text:"I promise to protect your smile and do everything I can to keep it alive."},
+ {img:"img8.jpg", text:"I promise to make even the simplest moments feel special, just because they’re with you."},
+ {img:"img9.jpg", text:"Sukhda… every promise I make leads me to this moment."},
+ {img:"img10.jpg", text:"On this Proposal Day, with all my heart… Sukhda, will you be mine forever? 💍❤️", final:true}
+];
 
-        <div class="choices">
-          <button class="choice" data-choice="Coffee date ☕">Coffee date ☕</button>
-          <button class="choice" data-choice="Dinner 🍝">Dinner 🍝</button>
-          <button class="choice" data-choice="Movie night 🎬">Movie night 🎬</button>
-          <button class="choice" data-choice="You decide 👑">You decide 👑</button>
-        </div>
+let index = 0;
+let typing;
 
-        <p class="tiny">P.S. “You decide” makes you the CEO of the date.</p>
-      </div>
+function startStory(){
+  document.querySelector(".overlay").style.display="none";
+  const music = document.getElementById("music");
+  music.muted = false;
+  music.volume = 1;
+  music.play();
+  showPage();
+}
 
-      <!-- Screen 4: Final -->
-      <div class="screen hidden" id="screenFinal">
-        <h2 class="big">Locked in 💘</h2>
-        <p class="sub" id="finalLine"></p>
+function typeText(text){
+  clearInterval(typing);
+  const el = document.getElementById("text");
+  el.innerHTML = "";
+  let i = 0;
+  typing = setInterval(()=>{
+    if(i < text.length){
+      el.innerHTML += text.charAt(i);
+      i++;
+    } else clearInterval(typing);
+  }, 40);
+}
 
-        <div class="finalCard">
-          <p class="finalMsg" id="finalMsg"></p>
-          <button class="btn copy" id="copyBtn">Copy this message</button>
-          <button class="btn again" id="againBtn">Replay</button>
-        </div>
-      </div>
-      <audio id="bgMusic" src="song.mp3" preload="auto" loop playsinline></audio>
-    </section>
+function showPage(){
+  document.getElementById("photo").src = pages[index].img;
+  typeText(pages[index].text);
 
-    
-  </main>
+  const yesBtn = document.getElementById("yesBtn");
+  const noBtn = document.getElementById("noBtn");
 
-  <!-- Confetti -->
-  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
-  <script src="script.js"></script>
+  if(pages[index].final){
+    yesBtn.innerText = "YES, FOREVER ♾️";
+    yesBtn.classList.add("heartbeat");
+    yesBtn.onclick = () => {
+      launchConfetti();
+      setTimeout(()=>{
+        alert("You just made me the happiest person ❤️\nI love you endlessly, Sukhda 💍");
+      }, 800);
+    };
+    noBtn.style.display = "inline-block";
+  } else {
+    yesBtn.innerText = "Continue 💖";
+    yesBtn.classList.remove("heartbeat");
+    yesBtn.onclick = next;
+    noBtn.style.display = "none";
+  }
+}
+
+function next(){
+  if(index < pages.length - 1){
+    index++;
+    showPage();
+  }
+}
+
+/* NO button jump 😌 */
+const noBtn = document.getElementById("noBtn");
+noBtn.addEventListener("mouseover", moveNo);
+noBtn.addEventListener("click", moveNo);
+
+function moveNo(){
+  const texts=["Hey 😳","Nope 😌","Try again 😄","Not allowed 🙈","Nice try 💕"];
+  noBtn.innerText = texts[Math.floor(Math.random()*texts.length)];
+  const x = Math.random()*200 - 100;
+  const y = Math.random()*150 - 75;
+  noBtn.style.transform = `translate(${x}px, ${y}px)`;
+}
+
+/* Confetti 💖 */
+function launchConfetti(){
+  const container = document.getElementById("confetti");
+  container.innerHTML = "";
+  for(let i=0;i<30;i++){
+    const heart = document.createElement("span");
+    heart.innerText = "💖";
+    heart.style.setProperty("--x", `${Math.random()*400-200}px`);
+    heart.style.setProperty("--y", `${Math.random()*400-100}px`);
+    container.appendChild(heart);
+    setTimeout(()=>heart.remove(),3000);
+  }
+}
+</script>
+
 </body>
 </html>
-
-
-
